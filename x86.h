@@ -76,12 +76,13 @@ struct gatedesc;
 static inline void
 lidt(struct gatedesc *p, int size)
 {
+  //-- here the p is the address of the idt table.
   volatile ushort pd[3];
 
   pd[0] = size-1;
   pd[1] = (uint)p;
   pd[2] = (uint)p >> 16;
-
+  //-- lidt is the instruction that is used to load the addrress of the idt table into the idt register
   asm volatile("lidt (%0)" : : "r" (pd));
 }
 

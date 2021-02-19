@@ -9,7 +9,7 @@
 
 .code16                       # Assemble for 16-bit mode
 .globl start
-start:
+start: #-- this instruction in the memory will actually be at loction 7c00 --
   cli                         # BIOS enabled interrupts; disable
 
   # Zero data segment registers DS, ES, and SS.
@@ -17,6 +17,9 @@ start:
   movw    %ax,%ds             # -> Data Segment
   movw    %ax,%es             # -> Extra Segment
   movw    %ax,%ss             # -> Stack Segment
+
+#-- all THREE segments except CODE segment reg (16 bit) is set to ZERO, the CODE segment has to be handled by BIOS 
+#-- because we are actually executing that code now so CS is not in the consideration. --
 
   # Physical address line A20 is tied to zero so that the first PCs 
   # with 2 MB would run software that assumed 1 MB.  Undo that.
@@ -35,11 +38,14 @@ seta20.2:
 
   movb    $0xdf,%al               # 0xdf -> port 0x60
   outb    %al,$0x60
+#-- the above lines are performing the task of enabling the 21st bit of the addresses which are 
+#-- introduced in 80286 (not so important ignored by sir)
 
   # Switch from real to protected mode.  Use a bootstrap GDT that makes
   # virtual addresses map directly to physical addresses so that the
   # effective memory map doesn't change during the transition.
-  lgdt    gdtdesc
+  lgdt    gdtdesc #-- lgdt is the instruction to load the GLOBAL DISCRIPTOR TABLE whick is part of MMU
+  #-- load into GDT the set of 3 numbers given by the gdtdesc -> gdt
   movl    %cr0, %eax
   orl     $CR0_PE, %eax
   movl    %eax, %cr0
@@ -50,6 +56,12 @@ seta20.2:
   # translation, so that the mapping is still the identity mapping.
   ljmp    $(SEG_KCODE<<3), $start32
 
+#-- here in  the above lines system changes from real mode(16 bit) to protected mode(32 bit)
+#-- user mode and kernel mode are part of the protected mode.
+#-- the addressing scheme that was used SEGMENT*4+offset (20 bit address) wont be used from now, the contents in
+#-- segment register will be used as the index to the GDT table
+#-- also after the above instruction CS and EIP will be changed with 32 bit values.
+
 .code32  # Tell assembler to generate 32-bit code now.
 start32:
   # Set up the protected-mode data segment registers
@@ -57,12 +69,14 @@ start32:
   movw    %ax, %ds                # -> DS: Data Segment
   movw    %ax, %es                # -> ES: Extra Segment
   movw    %ax, %ss                # -> SS: Stack Segment
+  #-- SEG_KDATA left shifted by 3 and put into CS ES SS. so all point to 
   movw    $0, %ax                 # Zero segments not ready for use
   movw    %ax, %fs                # -> FS
   movw    %ax, %gs                # -> GS
 
   # Set up the stack pointer and call into C.
   movl    $start, %esp
+  #-- make stack point to 7c00 note that stack will grow downwords from 7c00 to 0000 and the code is upwords to 7c00
   call    bootmain
 
   # If bootmain returns (it shouldn't), trigger a Bochs
@@ -80,9 +94,10 @@ spin:
 gdt:
   SEG_NULLASM                             # null seg
   SEG_ASM(STA_X|STA_R, 0x0, 0xffffffff)   # code seg
+  #-- base is 0 and limit is 4GB
   SEG_ASM(STA_W, 0x0, 0xffffffff)         # data seg
 
-gdtdesc:
+gdtdesc: #-- GDT discriptor 
   .word   (gdtdesc - gdt - 1)             # sizeof(gdt) - 1
   .long   gdt                             # address gdt
 

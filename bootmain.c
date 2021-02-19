@@ -18,14 +18,23 @@ void
 bootmain(void)
 {
   struct elfhdr *elf;
-  struct proghdr *ph, *eph;
+  struct proghdr *ph, *eph; 
+  //-- the program header is following the ELF header in ELF file
+  //-- so it has offsets to the different sections such as .data, .text etc in the same file. 
   void (*entry)(void);
   uchar* pa;
 
   elf = (struct elfhdr*)0x10000;  // scratch space
-
+  
+  //-- here we created the structure containing properties of ELF files at
+  //-- location 4K i.e. 0x10000 in the memory it is the temp space created to read program headers and 
+  //-- by using them copy the sections of ELF into specified locations in those headers.
+  //-- Location 1MB is actually where the sections of the kernel are going to be loaded. can be found
+  //-- using OBJDUMP kernel
+  
   // Read 1st page off disk
   readseg((uchar*)elf, 4096, 0);
+  //-- now the read segment is reading the 4K of data from the hardisk in the memory staring from location 1MB
 
   // Is this an ELF executable?
   if(elf->magic != ELF_MAGIC)
@@ -34,9 +43,13 @@ bootmain(void)
   // Load each program segment (ignores ph flags).
   ph = (struct proghdr*)((uchar*)elf + elf->phoff);
   eph = ph + elf->phnum;
+  //-- number of program headers
   for(; ph < eph; ph++){
+    //-- iterating over each program header.
     pa = (uchar*)ph->paddr;
+    //-- physical address to load the program
     readseg(pa, ph->filesz, ph->off);
+    //-- read every segment area from the ELF file to that perticular location.
     if(ph->memsz > ph->filesz)
       stosb(pa + ph->filesz, 0, ph->memsz - ph->filesz);
   }

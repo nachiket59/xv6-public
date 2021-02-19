@@ -8,7 +8,7 @@ alltraps:
   pushl %es
   pushl %fs
   pushl %gs
-  pushal
+  pushal #-- this pushes all general puepose reegisters onto the stack
   
   # Set up data segments.
   movw $(SEG_KDATA<<3), %ax

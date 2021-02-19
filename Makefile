@@ -51,7 +51,7 @@ TOOLPREFIX := $(shell if i386-jos-elf-objdump -i 2>&1 | grep '^elf32-i386$$' >/d
 endif
 
 # If the makefile can't find QEMU, specify its path here
-# QEMU = qemu-system-i386
+#QEMU = usr/share/bash-completion/completions/qemu-system-i386
 
 # Try to infer the correct QEMU
 ifndef QEMU
@@ -91,9 +91,9 @@ CFLAGS += -fno-pie -nopie
 endif
 
 xv6.img: bootblock kernel
-	dd if=/dev/zero of=xv6.img count=10000
-	dd if=bootblock of=xv6.img conv=notrunc
-	dd if=kernel of=xv6.img seek=1 conv=notrunc
+	dd if=/dev/zero of=xv6.img count=10000 #copy zeros into the xv6.img 10000 blocks of 512 bytes each i.e. 1mb
+	dd if=bootblock of=xv6.img conv=notrunc #copy bootblock without truncating the file.
+	dd if=kernel of=xv6.img seek=1 conv=notrunc #copy the kernel starting from block1.
 
 xv6memfs.img: bootblock kernelmemfs
 	dd if=/dev/zero of=xv6memfs.img count=10000
@@ -101,9 +101,13 @@ xv6memfs.img: bootblock kernelmemfs
 	dd if=kernelmemfs of=xv6memfs.img seek=1 conv=notrunc
 
 bootblock: bootasm.S bootmain.c
-	$(CC) $(CFLAGS) -fno-pic -O -nostdinc -I. -c bootmain.c
+	$(CC) $(CFLAGS) -fno-pic -O -nostdinc -I. -c bootmain.c 
+	#creates bootmain.o
 	$(CC) $(CFLAGS) -fno-pic -nostdinc -I. -c bootasm.S
+	#creates bootasm.S
 	$(LD) $(LDFLAGS) -N -e start -Ttext 0x7C00 -o bootblock.o bootasm.o bootmain.o
+	#LD is used to link bootmain and bootasm into bootblock, -Ttext is used to specify the address at which 
+	#the bootloader has to be loaded and it is specified in the documentation of the hardware system provider.
 	$(OBJDUMP) -S bootblock.o > bootblock.asm
 	$(OBJCOPY) -S -O binary -j .text bootblock.o bootblock
 	./sign.pl bootblock

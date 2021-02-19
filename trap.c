@@ -10,9 +10,14 @@
 
 // Interrupt descriptor table (shared by all CPUs).
 struct gatedesc idt[256];
+//-- getdesc is the structure in which an inturrupt descriptor table enrty should look like provieded in processor docs
+//-- idt[256] is actually the IDT 
 extern uint vectors[];  // in vectors.S: array of 256 entry pointers
 struct spinlock tickslock;
 uint ticks;
+
+//-- Bootloader loaded kernel -> then jumped to the  code of entry -> then entry.S jumped to the main.c
+//-- then main called tvinit
 
 void
 tvinit(void)
@@ -20,9 +25,12 @@ tvinit(void)
   int i;
 
   for(i = 0; i < 256; i++)
+    //-- SETGATE here is a multiline macro which is basicallu setting perticular values to each param of the idt entry.
     SETGATE(idt[i], 0, SEG_KCODE<<3, vectors[i], 0);
+    //-- here the vectors is the array of addresses, so here the idt is getting filled with each address from the
+  //-- vectors array.
   SETGATE(idt[T_SYSCALL], 1, SEG_KCODE<<3, vectors[T_SYSCALL], DPL_USER);
-
+  //-- here the T_SYSCALL is 64, the int 64 is used for softeware interrupts, or system calls,DPL_USER 3
   initlock(&tickslock, "time");
 }
 
@@ -30,6 +38,13 @@ void
 idtinit(void)
 {
   lidt(idt, sizeof(idt));
+  //-- lidt loads the register idt with the address of the idt table int the memory.
+  //-- and now whenever there will be any kind of interrupt ( at the end of curruntly running instruction,
+  //-- note that intrrupt will never happen at the middle of any instruction.) happens then the interrupt number
+  //-- value and the IDT reg value will be used by the CPU to calculate the perticular IDT entry from the IDT table.
+  //-- From this entry it will take the value of the CS and IP .
+  //-- IP will contain the address of vector1,vector2 etc.
+  //-- now move to vector in vectors.S 
 }
 
 //PAGEBREAK: 41
